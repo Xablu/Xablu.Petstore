@@ -22,14 +22,25 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 using Newtonsoft.Json;
 using Xablu.Petstore.Attributes;
 using Xablu.Petstore.Models;
+using Xablu.Petstore.Services;
 
 namespace Xablu.Petstore.Controllers
-{ 
+{
     /// <summary>
     /// 
     /// </summary>
     public class StoreApiController : Controller
-    { 
+    {
+        private readonly IOrderService _orderService;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public StoreApiController(IOrderService orderService)
+        {
+            _orderService = orderService;
+        }
+
         /// <summary>
         /// Delete purchase order by ID
         /// </summary>
@@ -41,9 +52,10 @@ namespace Xablu.Petstore.Controllers
         [Route("/v2/store/order/{orderId}")]
         [ValidateModelState]
         [SwaggerOperation("DeleteOrder")]
-        public virtual void DeleteOrder([FromRoute]string orderId)
-        { 
-            throw new NotImplementedException();
+        public virtual IActionResult DeleteOrder([FromRoute]string orderId)
+        {
+            if (_orderService.DeleteOrder(orderId)) return Ok();
+            return NotFound();
         }
 
         /// <summary>
@@ -57,13 +69,8 @@ namespace Xablu.Petstore.Controllers
         [SwaggerOperation("GetInventory")]
         [SwaggerResponse(200, typeof(Dictionary<string, int?>), "successful operation")]
         public virtual IActionResult GetInventory()
-        { 
-            string exampleJson = null;
-            
-            var example = exampleJson != null
-            ? JsonConvert.DeserializeObject<Dictionary<string, int?>>(exampleJson)
-            : default(Dictionary<string, int?>);
-            return new ObjectResult(example);
+        {
+            return new ObjectResult(_orderService.GetOrderInventory());
         }
 
         /// <summary>
@@ -82,13 +89,11 @@ namespace Xablu.Petstore.Controllers
         [SwaggerResponse(400, typeof(Order), "Invalid ID supplied")]
         [SwaggerResponse(404, typeof(Order), "Order not found")]
         public virtual IActionResult GetOrderById([FromRoute]long? orderId)
-        { 
-            string exampleJson = null;
-            
-            var example = exampleJson != null
-            ? JsonConvert.DeserializeObject<Order>(exampleJson)
-            : default(Order);
-            return new ObjectResult(example);
+        {
+            if (!orderId.HasValue) return BadRequest();
+            var order = _orderService.FindOrderById(orderId.Value);
+            if (order == null) return NotFound();
+            return new ObjectResult(order);
         }
 
         /// <summary>
@@ -104,14 +109,9 @@ namespace Xablu.Petstore.Controllers
         [SwaggerOperation("PlaceOrder")]
         [SwaggerResponse(200, typeof(Order), "successful operation")]
         [SwaggerResponse(400, typeof(Order), "Invalid Order")]
-        public virtual IActionResult PlaceOrder([FromBody]Order body)
-        { 
-            string exampleJson = null;
-            
-            var example = exampleJson != null
-            ? JsonConvert.DeserializeObject<Order>(exampleJson)
-            : default(Order);
-            return new ObjectResult(example);
+        public virtual Order PlaceOrder([FromBody]Order body)
+        {
+            return _orderService.PlaceOrder(body);
         }
     }
 }

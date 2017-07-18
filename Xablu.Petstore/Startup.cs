@@ -69,6 +69,7 @@ namespace Xablu.Petstore
             });
 
             services.AddSingleton<IPetService, PetService>();
+            services.AddSingleton<IOrderService, OrderService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

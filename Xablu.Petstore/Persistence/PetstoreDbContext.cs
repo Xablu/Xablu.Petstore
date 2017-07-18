@@ -19,12 +19,12 @@ namespace Xablu.Petstore.Persistence
         }
 
         public DbSet<PetDbContext> Pets { get; set; }
+        public DbSet<OrderDbContext> Orders { get; set; }
     }
 
     public class PetDbContext
     {
         private Pet _pet;
-
         public long PetDbContextId { get; set; }
 
         [NotMapped]
@@ -47,5 +47,34 @@ namespace Xablu.Petstore.Persistence
         }
 
         public string JsonPet { get; set; }
+    }
+
+    public class OrderDbContext
+    {
+        private Order _order;
+
+        public long OrderDbContextId { get; set; }
+
+        [NotMapped]
+        public Order Order
+        {
+            get
+            {
+                if (_order == null)
+                {
+                    _order = JsonConvert.DeserializeObject<Order>(JsonOrder);
+                }
+                if (_order.Id == null) _order.Id = OrderDbContextId;
+                return _order;
+            }
+            set
+            {
+                _order = value;
+                JsonOrder = JsonConvert.SerializeObject(_order);
+            }
+        }
+
+        public string JsonOrder { get; set; }
+
     }
 }
