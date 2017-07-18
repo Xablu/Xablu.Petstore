@@ -5,13 +5,18 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.PlatformAbstractions;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
 using Swashbuckle.AspNetCore.Swagger;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using Xablu.Petstore.Persistence;
+using Xablu.Petstore.Services;
 
 namespace Xablu.Petstore
 {
@@ -36,6 +41,10 @@ namespace Xablu.Petstore
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            var basepath = PlatformServices.Default.Application.ApplicationBasePath;
+            services.AddEntityFramework()
+                .AddDbContext<PetstoreDbContext>(options => options.UseSqlite($"Filename={basepath}/{PetstoreDbContext.SqlLiteFileName}"));
+
             // Add framework services.
             services.AddMvc().AddJsonOptions(opts =>
             {
@@ -58,6 +67,8 @@ namespace Xablu.Petstore
                 c.DescribeAllEnumsAsStrings();
                 c.IncludeXmlComments($"{AppContext.BaseDirectory}{Path.DirectorySeparatorChar}{_env.ApplicationName}.xml");
             });
+
+            services.AddSingleton<IPetService, PetService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

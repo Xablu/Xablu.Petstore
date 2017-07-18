@@ -22,14 +22,27 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 using Newtonsoft.Json;
 using Xablu.Petstore.Attributes;
 using Xablu.Petstore.Models;
+using Xablu.Petstore.Services;
+using static Xablu.Petstore.Models.Pet;
+using Newtonsoft.Json.Converters;
 
 namespace Xablu.Petstore.Controllers
-{ 
+{
     /// <summary>
     /// 
     /// </summary>
     public class PetApiController : Controller
-    { 
+    {
+        private readonly IPetService _petService;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public PetApiController(IPetService petService)
+        {
+            _petService = petService;
+        }
+
         /// <summary>
         /// Add a new pet to the store
         /// </summary>
@@ -40,9 +53,9 @@ namespace Xablu.Petstore.Controllers
         [Route("/v2/pet")]
         [ValidateModelState]
         [SwaggerOperation("AddPet")]
-        public virtual void AddPet([FromBody]Pet body)
-        { 
-            throw new NotImplementedException();
+        public virtual Pet AddPet([FromBody]Pet body)
+        {
+            return _petService.AddPet(body);
         }
 
         /// <summary>
@@ -56,9 +69,10 @@ namespace Xablu.Petstore.Controllers
         [Route("/v2/pet/{petId}")]
         [ValidateModelState]
         [SwaggerOperation("DeletePet")]
-        public virtual void DeletePet([FromRoute]long? petId, [FromHeader]string apiKey)
-        { 
-            throw new NotImplementedException();
+        public virtual IActionResult DeletePet([FromRoute]long? petId, [FromHeader]string apiKey)
+        {
+            if (_petService.DeletePet(petId)) return Ok();
+            return NotFound();
         }
 
         /// <summary>
@@ -75,13 +89,16 @@ namespace Xablu.Petstore.Controllers
         [SwaggerResponse(200, typeof(List<Pet>), "successful operation")]
         [SwaggerResponse(400, typeof(List<Pet>), "Invalid status value")]
         public virtual IActionResult FindPetsByStatus([FromQuery]List<string> status)
-        { 
-            string exampleJson = null;
-            
-            var example = exampleJson != null
-            ? JsonConvert.DeserializeObject<List<Pet>>(exampleJson)
-            : default(List<Pet>);
-            return new ObjectResult(example);
+        {
+            var searchStatus = new List<StatusEnum?>();
+            foreach (var st in status)
+            {
+                if (st == "available") searchStatus.Add(StatusEnum.AvailableEnum);
+                else if (st == "pending") searchStatus.Add(StatusEnum.PendingEnum);
+                else if (st == "sold") searchStatus.Add(StatusEnum.SoldEnum);
+                else return new BadRequestResult();
+            }
+            return new ObjectResult(_petService.FindPetsByStatus(searchStatus));
         }
 
         /// <summary>
@@ -98,13 +115,8 @@ namespace Xablu.Petstore.Controllers
         [SwaggerResponse(200, typeof(List<Pet>), "successful operation")]
         [SwaggerResponse(400, typeof(List<Pet>), "Invalid tag value")]
         public virtual IActionResult FindPetsByTags([FromQuery]List<string> tags)
-        { 
-            string exampleJson = null;
-            
-            var example = exampleJson != null
-            ? JsonConvert.DeserializeObject<List<Pet>>(exampleJson)
-            : default(List<Pet>);
-            return new ObjectResult(example);
+        {
+            return new ObjectResult(_petService.FindPetsByTags(tags));
         }
 
         /// <summary>
@@ -123,13 +135,11 @@ namespace Xablu.Petstore.Controllers
         [SwaggerResponse(400, typeof(Pet), "Invalid ID supplied")]
         [SwaggerResponse(404, typeof(Pet), "Pet not found")]
         public virtual IActionResult GetPetById([FromRoute]long? petId)
-        { 
-            string exampleJson = null;
-            
-            var example = exampleJson != null
-            ? JsonConvert.DeserializeObject<Pet>(exampleJson)
-            : default(Pet);
-            return new ObjectResult(example);
+        {
+            if (!petId.HasValue) return BadRequest();
+            var pet = _petService.FindPetById(petId.Value);
+            if (pet == null) return NotFound();
+            return new ObjectResult(pet);
         }
 
         /// <summary>
@@ -144,9 +154,12 @@ namespace Xablu.Petstore.Controllers
         [Route("/v2/pet")]
         [ValidateModelState]
         [SwaggerOperation("UpdatePet")]
-        public virtual void UpdatePet([FromBody]Pet body)
-        { 
-            throw new NotImplementedException();
+        public virtual IActionResult UpdatePet([FromBody]Pet body)
+        {
+            if (!body.Id.HasValue) return BadRequest();
+            var pet = _petService.FindPetById(body.Id.Value);
+            if (pet == null) return NotFound();
+            return new ObjectResult(_petService.UpdatePet(pet.Id.Value, body));
         }
 
         /// <summary>
@@ -161,9 +174,19 @@ namespace Xablu.Petstore.Controllers
         [Route("/v2/pet/{petId}")]
         [ValidateModelState]
         [SwaggerOperation("UpdatePetWithForm")]
-        public virtual void UpdatePetWithForm([FromRoute]long? petId, [FromForm]string name, [FromForm]string status)
-        { 
-            throw new NotImplementedException();
+        public virtual IActionResult UpdatePetWithForm([FromRoute]long? petId, [FromForm]string name, [FromForm]string status)
+        {
+            if (!petId.HasValue) return BadRequest();
+            var pet = _petService.FindPetById(petId.Value);
+            if (pet == null) return NotFound();
+
+            StatusEnum petStatus;
+            if (status == "available") petStatus = StatusEnum.AvailableEnum;
+            else if (status == "pending") petStatus = StatusEnum.PendingEnum;
+            else if (status == "sold") petStatus = StatusEnum.SoldEnum;
+            else return StatusCode(405);
+
+            return new ObjectResult(_petService.UpdatePet(pet.Id.Value, new Pet { Name = name, Status = petStatus }));
         }
 
         /// <summary>
@@ -180,9 +203,9 @@ namespace Xablu.Petstore.Controllers
         [SwaggerOperation("UploadFile")]
         [SwaggerResponse(200, typeof(ApiResponse), "successful operation")]
         public virtual IActionResult UploadFile([FromRoute]long? petId, [FromForm]string additionalMetadata, [FromForm]System.IO.Stream file)
-        { 
+        {
             string exampleJson = null;
-            
+
             var example = exampleJson != null
             ? JsonConvert.DeserializeObject<ApiResponse>(exampleJson)
             : default(ApiResponse);
