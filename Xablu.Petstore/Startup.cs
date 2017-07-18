@@ -66,6 +66,7 @@ namespace Xablu.Petstore
                 c.CustomSchemaIds(type => type.FriendlyId(true));
                 c.DescribeAllEnumsAsStrings();
                 c.IncludeXmlComments($"{AppContext.BaseDirectory}{Path.DirectorySeparatorChar}{_env.ApplicationName}.xml");
+                c.OperationFilter<FileOperationFilter>();
             });
 
             services.AddSingleton<IPetService, PetService>();

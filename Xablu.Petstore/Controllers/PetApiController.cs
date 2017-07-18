@@ -25,6 +25,8 @@ using Xablu.Petstore.Models;
 using Xablu.Petstore.Services;
 using static Xablu.Petstore.Models.Pet;
 using Newtonsoft.Json.Converters;
+using System.IO;
+using Microsoft.AspNetCore.Hosting;
 
 namespace Xablu.Petstore.Controllers
 {
@@ -33,13 +35,15 @@ namespace Xablu.Petstore.Controllers
     /// </summary>
     public class PetApiController : Controller
     {
+        private readonly IHostingEnvironment _environment;
         private readonly IPetService _petService;
 
         /// <summary>
         /// 
         /// </summary>
-        public PetApiController(IPetService petService)
+        public PetApiController(IHostingEnvironment environment, IPetService petService)
         {
+            _environment = environment;
             _petService = petService;
         }
 
@@ -202,14 +206,21 @@ namespace Xablu.Petstore.Controllers
         [ValidateModelState]
         [SwaggerOperation("UploadFile")]
         [SwaggerResponse(200, typeof(ApiResponse), "successful operation")]
-        public virtual IActionResult UploadFile([FromRoute]long? petId, [FromForm]string additionalMetadata, [FromForm]System.IO.Stream file)
+        public virtual async Task<IActionResult> UploadFile([FromRoute]long? petId, [FromForm]string additionalMetadata, [FromForm]IFormFile file)
         {
-            string exampleJson = null;
+            if (!petId.HasValue) return BadRequest();
+            var pet = _petService.FindPetById(petId.Value);
+            if (pet == null) return NotFound();
 
-            var example = exampleJson != null
-            ? JsonConvert.DeserializeObject<ApiResponse>(exampleJson)
-            : default(ApiResponse);
-            return new ObjectResult(example);
+            var imagePath = Path.Combine(_environment.ContentRootPath, "images", $"{petId.Value}", file.FileName);
+            Directory.CreateDirectory(Path.GetDirectoryName(imagePath));
+
+            using (var fileStream = new FileStream(imagePath, FileMode.Create))
+            {
+                await file.CopyToAsync(fileStream);
+            }
+
+            return Ok();
         }
     }
 }
