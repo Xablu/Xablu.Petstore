@@ -14,7 +14,7 @@ namespace Xablu.Petstore
         {
             var host = new WebHostBuilder()
                 .UseKestrel()
-                .UseUrls("http://*:5000")
+                .UseUrls("http://*:5000", "https://*.azurewebsites.net")
                 .UseContentRoot(Directory.GetCurrentDirectory())
                 .UseIISIntegration()
                 .UseStartup<Startup>()
